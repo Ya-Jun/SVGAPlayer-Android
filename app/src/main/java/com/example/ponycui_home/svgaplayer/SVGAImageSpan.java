@@ -159,14 +159,14 @@ public class SVGAImageSpan extends ImageSpan {
     private String randomSample() {
         if (samples.size() == 0) {
             samples.add("angel.svga");
-//            samples.add("alarm.svga");
-//            samples.add("EmptyState.svga");
-//            samples.add("heartbeat.svga");
-//            samples.add("posche.svga");
-//            samples.add("rose_1.5.0.svga");
-//            samples.add("rose_2.0.0.svga");
-//            samples.add("test.svga");
-//            samples.add("test2.svga");
+            samples.add("alarm.svga");
+            samples.add("EmptyState.svga");
+            samples.add("heartbeat.svga");
+            samples.add("posche.svga");
+            samples.add("rose_1.5.0.svga");
+            samples.add("rose_2.0.0.svga");
+            samples.add("test.svga");
+            samples.add("test2.svga");
         }
         return samples.get((int) Math.floor(Math.random() * samples.size()));
     }
