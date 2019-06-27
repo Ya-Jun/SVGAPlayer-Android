@@ -19,8 +19,9 @@ import com.opensource.svgaplayer.SVGAVideoEntity;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 
 /**
  * 垂直居中的 ImageSpan
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 public class SVGAImageSpan extends ImageSpan {
     private Context context;
     private TextView textView;
+    private String filePath;
 
     private SVGADrawable svgaDrawable;
     private SVGAVideoEntity svgaVideoEntity;
@@ -50,10 +52,11 @@ public class SVGAImageSpan extends ImageSpan {
         }
     };
 
-    public SVGAImageSpan(Context context, TextView textView) {
+    public SVGAImageSpan(Context context,String filePath ,TextView textView) {
         super(context, R.drawable.ic_launcher);
         this.context = context;
         this.textView = textView;
+        this.filePath = filePath;
 
         loadAnimation();
     }
@@ -120,54 +123,42 @@ public class SVGAImageSpan extends ImageSpan {
 
     private void loadAnimation() {
         SVGAParser parser = new SVGAParser(context);
-        parser.decodeFromAssets(this.randomSample(), new SVGAParser.ParseCompletion() {
-            @Override
-            public void onComplete(@NotNull SVGAVideoEntity videoItem) {
-                svgaDrawable = new SVGADrawable(videoItem);
-                svgaDrawable.setBounds(0, 0, 200, 200);
-                svgaDrawable.setScaleType(ImageView.ScaleType.FIT_XY);
-                svgaDrawable.setCleared$library_debug(false);
+        try {
+            FileInputStream inputStream = new FileInputStream(filePath);
+            parser.decodeFromInputStream(inputStream, filePath, new SVGAParser.ParseCompletion() {
+                @Override
+                public void onComplete(@NotNull SVGAVideoEntity videoItem) {
+                    svgaDrawable = new SVGADrawable(videoItem);
+                    svgaDrawable.setBounds(0, 0, 200, 200);
+                    svgaDrawable.setScaleType(ImageView.ScaleType.FIT_XY);
+                    svgaDrawable.setCleared$library_debug(false);
 
-                try {
-                    Field mDrawable;
-                    Field mDrawableRef;
-                    mDrawable = ImageSpan.class.getDeclaredField("mDrawable");
-                    mDrawable.setAccessible(true);
-                    mDrawable.set(SVGAImageSpan.this, svgaDrawable);
+                    try {
+                        Field mDrawable;
+                        Field mDrawableRef;
+                        mDrawable = ImageSpan.class.getDeclaredField("mDrawable");
+                        mDrawable.setAccessible(true);
+                        mDrawable.set(SVGAImageSpan.this, svgaDrawable);
 
-                    mDrawableRef = DynamicDrawableSpan.class.getDeclaredField("mDrawableRef");
-                    mDrawableRef.setAccessible(true);
-                    mDrawableRef.set(SVGAImageSpan.this, null);
-                } catch (Exception e) {
-                    e.printStackTrace();
+                        mDrawableRef = DynamicDrawableSpan.class.getDeclaredField("mDrawableRef");
+                        mDrawableRef.setAccessible(true);
+                        mDrawableRef.set(SVGAImageSpan.this, null);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+
+                    svgaVideoEntity = svgaDrawable.getVideoItem();
+                    duration = 1000 / svgaVideoEntity.getFPS();
+                    mHandler.post(runnable);
                 }
 
-                svgaVideoEntity = svgaDrawable.getVideoItem();
-                duration = 1000 / svgaVideoEntity.getFPS();
-                mHandler.post(runnable);
-            }
+                @Override
+                public void onError() {
 
-            @Override
-            public void onError() {
-
-            }
-        });
-    }
-
-    private ArrayList<String> samples = new ArrayList();
-
-    private String randomSample() {
-        if (samples.size() == 0) {
-            samples.add("angel.svga");
-            samples.add("alarm.svga");
-            samples.add("EmptyState.svga");
-            samples.add("heartbeat.svga");
-            samples.add("posche.svga");
-            samples.add("rose_1.5.0.svga");
-            samples.add("rose_2.0.0.svga");
-            samples.add("test.svga");
-            samples.add("test2.svga");
+                }
+            }, true);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
         }
-        return samples.get((int) Math.floor(Math.random() * samples.size()));
     }
 }

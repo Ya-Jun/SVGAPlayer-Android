@@ -14,6 +14,7 @@ public class ImageSpanAnimationActivity extends Activity {
 
     TextView textView = null;
     private Pattern EMOTION_URL = Pattern.compile("\\[(\\S+?)\\]");
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -21,10 +22,10 @@ public class ImageSpanAnimationActivity extends Activity {
 
         textView = (TextView) findViewById(R.id.textview);
 
-//        String st = "动画不动，[m00]显示个不动的动画，动不动[m01][m01][m01][m01][m01][m01][m01][m01][m01][m01][m01]" +
-//                "[m01][m01][m01][m01][m01][m01][m01][m01][m01][m01][m01][m01][m01][m01][m01][m01][m01]"+
-//                "[m01][m01][m01][m01][m01][m01][m01][m01][m01][m01][m01][m01][m01][m01][m01][m01][m01]";
-        String st = "动画不动，[m00]显示个不动的动画，动不动[m01][m01][m01][m01][m01][m01][m01][m01][m01]";
+        // 文件通过TIM发送到手机SDcard地址
+        String file0 = "/mnt/sdcard/tencent/TIMfile_recv/fanpai.svga";
+        String file1 = "/mnt/sdcard/tencent/TIMfile_recv/angel.svga";
+        String st = "动画不动，[m00]显示个不动的动画，动不动[m01][m00][m01][m01][m00][m01][m01][m01][m01]";
         SpannableString spanString = new SpannableString(st);
 
         Matcher localMatcher = EMOTION_URL.matcher(st);
@@ -32,9 +33,16 @@ public class ImageSpanAnimationActivity extends Activity {
             String name = localMatcher.group();
             int k = localMatcher.start();
             int m = localMatcher.end();
-            SVGAImageSpan imgSpan = new SVGAImageSpan(this, textView);
+            String path;
+            if (name.equals("[m00]")) {
+                path = file0;
+            } else {
+                path = file1;
+            }
+            SVGAImageSpan imgSpan = new SVGAImageSpan(this, path, textView);
             spanString.setSpan(imgSpan, k, m, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
         textView.setText(spanString);
     }
+
 }

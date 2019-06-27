@@ -76,8 +76,8 @@ public class MainActivity extends AppCompatActivity {
         this.items.add(new SampleItem("Animation From Layout XML", new Intent(this, AnimationFromLayoutActivity.class)));
         this.items.add(new SampleItem("Animation With Dynamic Image", new Intent(this, AnimationWithDynamicImageActivity.class)));
 
-        this.items.add(new SampleItem("Show Animation by ImageView", new Intent(this, ImageViewAnimationActivity.class)));
-        this.items.add(new SampleItem("Show Animation by ImageSpan", new Intent(this, ImageSpanAnimationActivity.class)));
+        this.items.add(new SampleItem("Animation by ImageView", new Intent(this, ImageViewAnimationActivity.class)));
+        this.items.add(new SampleItem("Animation by ImageSpan", new Intent(this, ImageSpanAnimationActivity.class)));
     }
 
     void setupListView() {
