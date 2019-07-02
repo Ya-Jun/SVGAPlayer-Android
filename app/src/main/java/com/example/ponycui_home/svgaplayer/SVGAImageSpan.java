@@ -10,6 +10,7 @@ import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.text.style.DynamicDrawableSpan;
 import android.text.style.ImageSpan;
+import android.util.Log;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -27,6 +28,7 @@ import java.lang.reflect.Field;
  * 垂直居中的 ImageSpan
  */
 public class SVGAImageSpan extends ImageSpan {
+    private final String TAG = "SVGAImageSpan";
     private Context context;
     private TextView textView;
     private String filePath;
@@ -48,6 +50,8 @@ public class SVGAImageSpan extends ImageSpan {
                 }
                 mHandler.postDelayed(this, duration);
                 textView.postInvalidate();
+            } else {
+                stopAnimation();
             }
         }
     };
@@ -58,7 +62,12 @@ public class SVGAImageSpan extends ImageSpan {
         this.textView = textView;
         this.filePath = filePath;
 
-        loadAnimation();
+        textView.post(new Runnable() {
+            @Override
+            public void run() {
+                getSvgaDrawable();
+            }
+        });
     }
 
 
@@ -120,8 +129,14 @@ public class SVGAImageSpan extends ImageSpan {
 
     }
 
+    private void getSvgaDrawable() {
+        svgaDrawable = SVGADrawableCache.getInstance().get(filePath);
+        if (svgaDrawable != null) {
+            Log.d(TAG, filePath + "get SVGADrawable from Cache");
+            loadAnimation();
+            return;
+        }
 
-    private void loadAnimation() {
         SVGAParser parser = new SVGAParser(context);
         try {
             FileInputStream inputStream = new FileInputStream(filePath);
@@ -129,27 +144,11 @@ public class SVGAImageSpan extends ImageSpan {
                 @Override
                 public void onComplete(@NotNull SVGAVideoEntity videoItem) {
                     svgaDrawable = new SVGADrawable(videoItem);
-                    svgaDrawable.setBounds(0, 0, 200, 200);
-                    svgaDrawable.setScaleType(ImageView.ScaleType.FIT_XY);
-                    svgaDrawable.setCleared$library_debug(false);
-
-                    try {
-                        Field mDrawable;
-                        Field mDrawableRef;
-                        mDrawable = ImageSpan.class.getDeclaredField("mDrawable");
-                        mDrawable.setAccessible(true);
-                        mDrawable.set(SVGAImageSpan.this, svgaDrawable);
-
-                        mDrawableRef = DynamicDrawableSpan.class.getDeclaredField("mDrawableRef");
-                        mDrawableRef.setAccessible(true);
-                        mDrawableRef.set(SVGAImageSpan.this, null);
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                    if (svgaDrawable != null) {
+                        Log.d(TAG,filePath + "get SVGADrawable from inputStream");
+                        loadAnimation();
+                        SVGADrawableCache.getInstance().put(filePath, svgaDrawable);
                     }
-
-                    svgaVideoEntity = svgaDrawable.getVideoItem();
-                    duration = 1000 / svgaVideoEntity.getFPS();
-                    mHandler.post(runnable);
                 }
 
                 @Override
@@ -159,6 +158,38 @@ public class SVGAImageSpan extends ImageSpan {
             }, true);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void loadAnimation() {
+        svgaDrawable.setBounds(0, 0, 200, 200);
+        svgaDrawable.setScaleType(ImageView.ScaleType.FIT_XY);
+        svgaDrawable.setCleared$library_debug(false);
+
+        try {
+            Field mDrawable;
+            Field mDrawableRef;
+            mDrawable = ImageSpan.class.getDeclaredField("mDrawable");
+            mDrawable.setAccessible(true);
+            mDrawable.set(SVGAImageSpan.this, svgaDrawable);
+
+            mDrawableRef = DynamicDrawableSpan.class.getDeclaredField("mDrawableRef");
+            mDrawableRef.setAccessible(true);
+            mDrawableRef.set(SVGAImageSpan.this, null);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        svgaVideoEntity = svgaDrawable.getVideoItem();
+        duration = 1000 / svgaVideoEntity.getFPS();
+        mHandler.post(runnable);
+    }
+
+    private void stopAnimation() {
+        if (mHandler != null && runnable != null) {
+            mHandler.removeCallbacks(runnable);
+            mHandler = null;
+            runnable = null;
         }
     }
 }
