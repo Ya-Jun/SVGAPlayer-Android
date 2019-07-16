@@ -7,69 +7,36 @@ import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
-import android.os.Handler;
 import android.text.style.DynamicDrawableSpan;
 import android.text.style.ImageSpan;
 import android.util.Log;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.opensource.svgaplayer.SVGADrawable;
-import com.opensource.svgaplayer.SVGAParser;
-import com.opensource.svgaplayer.SVGAVideoEntity;
 
-import org.jetbrains.annotations.NotNull;
-
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.lang.reflect.Field;
 
 /**
  * 垂直居中的 ImageSpan
  */
-public class SVGAImageSpan extends ImageSpan {
+public class SVGAImageSpan extends ImageSpan implements MySVGADrawable.RefreshListener {
     private final String TAG = "SVGAImageSpan";
     private Context context;
     private TextView textView;
     private String filePath;
+    private MySVGADrawable mySVGADrawable;
+    private long mLastTime;
+    private static final int REFRESH_INTERVAL = 60;
 
-    private SVGADrawable svgaDrawable;
-    private SVGAVideoEntity svgaVideoEntity;
-    private long duration;
-    private int i = 1;
 
-    private Handler mHandler = new Handler();
-    private Runnable runnable = new Runnable() {
-        @Override
-        public void run() {
-            if (svgaDrawable != null) {
-                svgaDrawable.setCurrentFrame$library_debug(i);
-                i++;
-                if (i == svgaVideoEntity.getFrames()) {
-                    i = 1;
-                }
-                mHandler.postDelayed(this, duration);
-                textView.postInvalidate();
-            } else {
-                stopAnimation();
-            }
-        }
-    };
-
-    public SVGAImageSpan(Context context,String filePath ,TextView textView) {
-        super(context, R.drawable.ic_launcher);
+    public SVGAImageSpan(Context context, String filePath, TextView textView, Drawable default_drawable) {
+        super(default_drawable);
         this.context = context;
         this.textView = textView;
         this.filePath = filePath;
 
-        textView.post(new Runnable() {
-            @Override
-            public void run() {
-                getSvgaDrawable();
-            }
-        });
+        getSvgaDrawable();
     }
-
 
     @Override
     public Drawable getDrawable() {
@@ -130,42 +97,34 @@ public class SVGAImageSpan extends ImageSpan {
     }
 
     private void getSvgaDrawable() {
-        svgaDrawable = SVGADrawableCache.getInstance().get(filePath);
-        if (svgaDrawable != null) {
-            Log.d(TAG, filePath + "get SVGADrawable from Cache");
-            loadAnimation();
-            return;
+        mySVGADrawable = SVGADrawableCache.getInstance().get(filePath);
+        // 防止多次new MySVGADrawable,但是一次发送多个新的动画，在刷新之前只会展示一个
+        if (mySVGADrawable == null) {
+            Log.d(TAG, "new MySVGADrawable");
+            mySVGADrawable = new MySVGADrawable(context, filePath);
+            SVGADrawableCache.getInstance().put(filePath, mySVGADrawable);
         }
-
-        SVGAParser parser = new SVGAParser(context);
-        try {
-            FileInputStream inputStream = new FileInputStream(filePath);
-            parser.decodeFromInputStream(inputStream, filePath, new SVGAParser.ParseCompletion() {
-                @Override
-                public void onComplete(@NotNull SVGAVideoEntity videoItem) {
-                    svgaDrawable = new SVGADrawable(videoItem);
-                    if (svgaDrawable != null) {
-                        Log.d(TAG,filePath + "get SVGADrawable from inputStream");
-                        loadAnimation();
-                        SVGADrawableCache.getInstance().put(filePath, svgaDrawable);
-                    }
-                }
-
-                @Override
-                public void onError() {
-
-                }
-            }, true);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
+        if (mySVGADrawable != null) {
+            mySVGADrawable.addRefreshListener(SVGAImageSpan.this);
         }
     }
 
-    private void loadAnimation() {
-        svgaDrawable.setBounds(0, 0, 200, 200);
-        svgaDrawable.setScaleType(ImageView.ScaleType.FIT_XY);
-        svgaDrawable.setCleared$library_debug(false);
+    public void removeRefreshListener() {
+        if (mySVGADrawable != null) {
+            mySVGADrawable.removeRefreshListener(SVGAImageSpan.this);
+        }
+    }
 
+    public void addRefreshListener() {
+        if (mySVGADrawable != null) {
+            mySVGADrawable.addRefreshListener(SVGAImageSpan.this);
+        }
+    }
+
+    private void updateDrawable(SVGADrawable svgaDrawable) {
+        if (getDrawable() instanceof SVGADrawable) {
+            return;
+        }
         try {
             Field mDrawable;
             Field mDrawableRef;
@@ -179,17 +138,21 @@ public class SVGAImageSpan extends ImageSpan {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-        svgaVideoEntity = svgaDrawable.getVideoItem();
-        duration = 1000 / svgaVideoEntity.getFPS();
-        mHandler.post(runnable);
     }
 
-    private void stopAnimation() {
-        if (mHandler != null && runnable != null) {
-            mHandler.removeCallbacks(runnable);
-            mHandler = null;
-            runnable = null;
+
+    @Override
+    public boolean onRefresh(SVGADrawable svgaDrawable) {
+        if (textView == null) {
+            return false;
         }
+        updateDrawable(svgaDrawable);
+
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - mLastTime > REFRESH_INTERVAL) {
+            mLastTime = currentTime;
+            textView.postInvalidate();
+        }
+        return true;
     }
 }
